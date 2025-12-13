@@ -8,79 +8,77 @@ import kotlin.math.*
 
 class WaterView(ctx: Context) : View(ctx) {
 
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val drops = MutableList(700) {
-        Drop(
-            x = Math.random().toFloat() * 800f,
-            y = Math.random().toFloat() * 1400f
-        )
+    private val columns = 180
+    private val surface = FloatArray(columns)
+    private val velocity = FloatArray(columns)
+
+
+    private var gravityX = 0f
+    private var gravityY = 0f
+
+    // Wasser-Feeling
+    private val stiffness = 0.025f      // Oberflächenspannung
+    private val damping = 0.985f        // Energieverlust
+    private val spread = 0.25f          // Wellenausbreitung
+
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(60, 180, 255)
+        style = Paint.Style.FILL
     }
 
-    private var gx = 0f
-    private var gy = 0f
-
-    // Wasser-Parameter (spiel damit!)
-    private val gravityStrength = 0.35f
-    private val damping = 0.985f
-    private val viscosity = 0.08f
-    private val cohesionDistance = 28f
-
     fun setGravity(x: Float, y: Float) {
-        gx = x * gravityStrength
-        gy = y * gravityStrength
+        gravityX = x
+        gravityY = y
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        for (i in surface.indices) {
+            surface[i] = h * 0.6f
+            velocity[i] = 0f
+        }
     }
 
     override fun onDraw(c: Canvas) {
-        c.drawColor(Color.rgb(6, 14, 30))
-        paint.color = Color.rgb(80, 200, 255)
+        c.drawColor(Color.rgb(8, 16, 32))
 
-        // Nachbarschaftseinfluss (Wasser klebt zusammen)
-        for (i in drops.indices) {
-            val a = drops[i]
-            var fx = 0f
-            var fy = 0f
+        for (i in 1 until columns - 1) {
+            val target = (surface[i - 1] + surface[i + 1]) * 0.5f
+            val force = (target - surface[i]) * stiffness
+            velocity[i] += force
+            velocity[i] *= damping
+            surface[i] += velocity[i]
+        }
 
-            for (j in drops.indices step 6) {
-                if (i == j) continue
-                val b = drops[j]
-                val dx = b.x - a.x
-                val dy = b.y - a.y
-                val dist = sqrt(dx*dx + dy*dy)
+        val tilt = gravityX * 8f
+        for (i in surface.indices) {
+            surface[i] += tilt * ((i.toFloat() / columns) - 0.5f)
+        }
 
-                if (dist in 1f..cohesionDistance) {
-                    val force = (cohesionDistance - dist) / cohesionDistance
-                    fx += dx * force * viscosity
-                    fy += dy * force * viscosity
-                }
+        repeat(3) {
+            for (i in 1 until columns - 1) {
+                val d = spread * (surface[i] - surface[i + 1])
+                surface[i] -= d
+                surface[i + 1] += d
             }
-
-            a.vx += fx + gx
-            a.vy += fy + gy
+            for (i in columns - 2 downTo 1) {
+                val d = spread * (surface[i] - surface[i - 1])
+                surface[i] -= d
+                surface[i - 1] += d
+            }
         }
 
-        for (d in drops) {
-            d.vx *= damping
-            d.vy *= damping
+        val path = Path()
+        val step = width.toFloat() / (columns - 1)
 
-            d.x += d.vx
-            d.y += d.vy
-
-            // Ränder → weiches Schwappen
-            if (d.x < 0f) { d.x = 0f; d.vx *= -0.5f }
-            if (d.x > width) { d.x = width.toFloat(); d.vx *= -0.5f }
-            if (d.y < 0f) { d.y = 0f; d.vy *= -0.5f }
-            if (d.y > height) { d.y = height.toFloat(); d.vy *= -0.5f }
-
-            c.drawCircle(d.x, d.y, 4.8f, paint)
+        path.moveTo(0f, surface[0])
+        for (i in 1 until columns) {
+            path.lineTo(i * step, surface[i])
         }
+        path.lineTo(width.toFloat(), this.height.toFloat())
+        path.lineTo(0f, this.height.toFloat())
+        path.close()
 
+        c.drawPath(path, paint)
         invalidate()
     }
-
-    data class Drop(
-        var x: Float,
-        var y: Float,
-        var vx: Float = 0f,
-        var vy: Float = 0f
-    )
 }
