@@ -31,7 +31,8 @@ class MainActivity : Activity(), SensorEventListener {
     }
 
     override fun onSensorChanged(e: SensorEvent) {
-        view.setGravity(-e.values[0], e.values[1])
+        view.setGravity(e.values[0], e.values[1])
+
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
