@@ -1,12 +1,11 @@
-// WaterGLSurfaceView.kt
 package com.example.water
 
 import android.content.Context
 import android.opengl.GLSurfaceView
-import android.util.AttributeSet
 
-class WaterGLSurfaceView(context: Context, attrs: AttributeSet? = null) : GLSurfaceView(context, attrs) {
-    private val renderer: WaterRenderer
+class WaterGLSurfaceView(context: Context) : GLSurfaceView(context) {
+
+    val renderer: WaterRenderer
 
     init {
         setEGLContextClientVersion(2)
